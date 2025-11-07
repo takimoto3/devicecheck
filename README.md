@@ -29,7 +29,8 @@ go get github.com/takimoto3/devicecheck
 
 ```go
 provider := MyTokenProvider{} // implements GetToken(time.Time) (string, error)
-cli, err := devicecheck.NewClient(provider)
+gen := devicecheck.UUIDGenerator{} // or your custom Generator implementation
+cli, err := devicecheck.NewClient(provider, gen)
 if err != nil {
     log.Fatal(err)
 }
@@ -40,24 +41,31 @@ The `devicecheck` client is built on top of the shared `appleapi-core` module:
 [`https://github.com/takimoto3/appleapi-core`](https://github.com/takimoto3/appleapi-core)
 
 The `appleapi-core` package provides a common client implementation for Apple APIs that use JWT-based authentication and signed HTTP requests.
-It exposes configuration through functional options (`appleapi.Option`) that can be passed to `NewClient`.
+It exposes configuration through functional options (`appleapi.Option`) that can be passed to `NewClient`. For example, to provide a custom logger:
+
+```go
+cli, err := devicecheck.NewClient(provider, gen, appleapi.WithLogger(myCustomLogger))
+```
+
+Additionally, the `devicecheck` client accepts a `devicecheck.Generator` implementation for generating `TransactionID`s. If `nil` is passed, a default `UUIDGenerator` is used.
 
 ### Use the development endpoint:
 
 This switches the base URL from the production host to the development host.
 
 ```go
-cli, err := devicecheck.NewClient(provider, appleapi.WithDevelopment())
+cli, err := devicecheck.NewClient(provider, gen, appleapi.WithDevelopment())
 ```
 
 ### Send requests:
+
+`TransactionID` and `TimeStamp` are automatically generated if omitted. You can also explicitly provide them in the request.
 
 #### Query bit states:
 
 ```go
 req := &devicecheck.QueryRequest{
     DeviceToken:   "device-token",
-    TransactionID: "tx-id",
 }
 resp, err := cli.Do(context.Background(), req)
 if err == devicecheck.ErrBitStateNotFound {
@@ -72,12 +80,32 @@ if resp.Result != nil {
 }
 ```
 
+To explicitly provide `TransactionID` and `TimeStamp`:
+
+```go
+reqWithDetails := &devicecheck.QueryRequest{
+    DeviceToken:   "device-token",
+    TransactionID: "my-custom-transaction-id",
+    TimeStamp:     devicecheck.UnixTime(time.Now().UTC()),
+}
+resp, err = cli.Do(context.Background(), reqWithDetails)
+if err == devicecheck.ErrBitStateNotFound {
+    log.Println("bit state not found for custom request")
+} else if err != nil {
+    log.Fatalf("query with custom details failed: %v", err)
+}
+if resp.Result != nil {
+    fmt.Println("custom bit0:", resp.Result.Bit0)
+    fmt.Println("custom bit1:", resp.Result.Bit1)
+    fmt.Println("custom last update:", resp.Result.LastUpdateTime)
+}
+```
+
 #### Update bit states:
 
 ```go
 req := &devicecheck.UpdateRequest{
     DeviceToken:   "device-token",
-    TransactionID: "tx-id",
     Bit0:          true,
     Bit1:          false,
 }
@@ -85,7 +113,7 @@ resp, err := cli.Do(context.Background(), req)
 if err != nil {
     log.Fatalf("update failed: %v", err)
 }
-fmt.Println("status:", resp.StatusCode)
+// Handle successful update, resp.Result will be nil for UpdateRequest
 ```
 
 #### Validate a device token:
@@ -93,13 +121,12 @@ fmt.Println("status:", resp.StatusCode)
 ```go
 req := &devicecheck.ValidateRequest{
     DeviceToken:   "device-token",
-    TransactionID: "tx-id",
 }
 resp, err := cli.Do(context.Background(), req)
 if err != nil {
     log.Fatalf("validation failed: %v", err)
 }
-fmt.Println("response:", resp.StatusCode)
+// Handle successful validation, resp.Result will be nil for ValidateRequest
 ```
 
 ## Error handling
