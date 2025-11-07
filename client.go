@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/takimoto3/appleapi-core"
 	"github.com/takimoto3/appleapi-core/token"
@@ -46,36 +47,36 @@ var (
 	ErrServiceUnavailable = errors.New("service unavailable")
 )
 
-var _ DeviceCheckRequest = QueryRequest{}
-var _ DeviceCheckRequest = UpdateRequest{}
-var _ DeviceCheckRequest = ValidateRequest{}
+var _ DeviceCheckRequest = &QueryRequest{}
+var _ DeviceCheckRequest = &UpdateRequest{}
+var _ DeviceCheckRequest = &ValidateRequest{}
 
 type DeviceCheckRequest interface {
 	Path() string
 }
 
 type QueryRequest struct {
-	DeviceToken   string            `json:"device_token"`
-	TransactionID string            `json:"transaction_id"`
-	TimeStamp     appleapi.UnixTime `json:"timestamp"`
+	DeviceToken   string   `json:"device_token"`
+	TransactionID string   `json:"transaction_id"`
+	TimeStamp     UnixTime `json:"timestamp"`
 }
 
 func (r QueryRequest) Path() string { return QueryPath }
 
 type UpdateRequest struct {
-	DeviceToken   string            `json:"device_token"`
-	TransactionID string            `json:"transaction_id"`
-	TimeStamp     appleapi.UnixTime `json:"timestamp"`
-	Bit0          bool              `json:"bit0"`
-	Bit1          bool              `json:"bit1"`
+	DeviceToken   string   `json:"device_token"`
+	TransactionID string   `json:"transaction_id"`
+	TimeStamp     UnixTime `json:"timestamp"`
+	Bit0          bool     `json:"bit0"`
+	Bit1          bool     `json:"bit1"`
 }
 
 func (r UpdateRequest) Path() string { return UpdatePath }
 
 type ValidateRequest struct {
-	DeviceToken   string            `json:"device_token"`
-	TransactionID string            `json:"transaction_id"`
-	TimeStamp     appleapi.UnixTime `json:"timestamp"`
+	DeviceToken   string   `json:"device_token"`
+	TransactionID string   `json:"transaction_id"`
+	TimeStamp     UnixTime `json:"timestamp"`
 }
 
 func (r ValidateRequest) Path() string { return ValidatePath }
@@ -91,10 +92,11 @@ type Response struct {
 }
 
 type Client struct {
-	inner *appleapi.Client
+	inner     *appleapi.Client
+	generator Generator
 }
 
-func NewClient(tp token.Provider, opts ...appleapi.Option) (*Client, error) {
+func NewClient(tp token.Provider, gen Generator, opts ...appleapi.Option) (*Client, error) {
 	cli, err := appleapi.NewClient(appleapi.DefaultHTTPClientInitializer(), ProductionHost, tp, opts...)
 	if err != nil {
 		return nil, err
@@ -103,10 +105,38 @@ func NewClient(tp token.Provider, opts ...appleapi.Option) (*Client, error) {
 		cli.Host = DevelopmentHost
 	}
 
-	return &Client{inner: cli}, nil
+	if gen == nil {
+		gen = UUIDGenerator{}
+	}
+
+	return &Client{inner: cli, generator: gen}, nil
 }
 
 func (cli *Client) Do(ctx context.Context, r DeviceCheckRequest) (*Response, error) {
+	switch req := r.(type) {
+	case *QueryRequest:
+		if req.TransactionID == "" {
+			req.TransactionID = cli.generator.Generate()
+		}
+		if req.TimeStamp.Time().IsZero() {
+			req.TimeStamp = UnixTime(time.Now().UTC())
+		}
+	case *UpdateRequest:
+		if req.TransactionID == "" {
+			req.TransactionID = cli.generator.Generate()
+		}
+		if req.TimeStamp.Time().IsZero() {
+			req.TimeStamp = UnixTime(time.Now().UTC())
+		}
+	case *ValidateRequest:
+		if req.TransactionID == "" {
+			req.TransactionID = cli.generator.Generate()
+		}
+		if req.TimeStamp.Time().IsZero() {
+			req.TimeStamp = UnixTime(time.Now().UTC())
+		}
+	}
+
 	url := cli.inner.Host + r.Path()
 
 	data, err := json.Marshal(r)
@@ -147,11 +177,11 @@ func (cli *Client) handleResponse(resp *http.Response) (*Response, error) {
 	switch resp.StatusCode {
 	case 200:
 		if len(msg) == 0 {
-			return &Response{}, nil
+			return &Response{&Result{}}, nil
 		}
 		if strings.Contains(msg, "Bit State Not Found") {
 			cli.inner.Logger.Info("bit state not found", "status", resp.StatusCode)
-			return &Response{}, ErrBitStateNotFound
+			return &Response{&Result{}}, ErrBitStateNotFound
 		}
 
 		var result Result
@@ -205,6 +235,8 @@ func (cli *Client) handleResponse(resp *http.Response) (*Response, error) {
 			return nil, ErrServiceUnavailable
 		}
 	}
+
+	// Fallback for all unhandled status codes or unexpected messages.
 	cli.inner.Logger.Error("unexpected response",
 		"status", resp.StatusCode,
 		"message", msg,

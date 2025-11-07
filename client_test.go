@@ -2,7 +2,9 @@ package devicecheck_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -159,12 +161,81 @@ func TestClient_Do_AllCases_NoMockRequest(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				data, err := io.ReadAll(r.Body)
+				if err != nil {
+					t.Fatal(err)
+				}
+				var got struct {
+					DeviceToken   string               `json:"device_token"`
+					TransactionID string               `json:"transaction_id"`
+					TimeStamp     devicecheck.UnixTime `json:"timestamp"`
+					Bit0          bool                 `json:"bit0"`
+					Bit1          bool                 `json:"bit1"`
+				}
+				if err := json.Unmarshal(data, &got); err != nil {
+					t.Fatal(err)
+				}
+
+				switch tt.request.(type) {
+				case *devicecheck.QueryRequest:
+					want := tt.request.(*devicecheck.QueryRequest)
+					if want.DeviceToken != got.DeviceToken {
+						t.Errorf("DeviceToken mismatch: expected %q, got %q", want.DeviceToken, got.DeviceToken)
+					}
+					if want.TransactionID == "" {
+						t.Errorf("TransactionID missing or empty value: expected %q, got empty value", want.TransactionID)
+					} else if want.TransactionID != got.TransactionID {
+						t.Errorf("TransactionID mismatch: expected %q, got %q", want.TransactionID, got.TransactionID)
+					}
+					if got.TimeStamp.Time().IsZero() {
+						t.Errorf("TimeStamp missing or zero value: expected %q, got zero value", want.TimeStamp)
+					} else if devicecheck.UnixTime(want.TimeStamp.Time().Truncate(time.Millisecond)) != got.TimeStamp {
+						t.Errorf("TimeStamp value mismatch: expected %q, got %q", want.TimeStamp, got.TimeStamp)
+					}
+				case *devicecheck.UpdateRequest:
+					want := tt.request.(*devicecheck.UpdateRequest)
+					if want.DeviceToken != got.DeviceToken {
+						t.Errorf("DeviceToken mismatch: expected %q, got %q", want.DeviceToken, got.DeviceToken)
+					}
+					if want.TransactionID == "" {
+						t.Errorf("TransactionID missing or empty value: expected %q, got empty value", want.TransactionID)
+					} else if want.TransactionID != got.TransactionID {
+						t.Errorf("TransactionID mismatch: expected %q, got %q", want.TransactionID, got.TransactionID)
+					}
+					if got.TimeStamp.Time().IsZero() {
+						t.Errorf("TimeStamp missing or zero value: expected %q, got zero value", want.TimeStamp)
+					} else if devicecheck.UnixTime(want.TimeStamp.Time().Truncate(time.Millisecond)) != got.TimeStamp {
+						t.Errorf("TimeStamp value mismatch: expected %q, got %q", want.TimeStamp, got.TimeStamp)
+					}
+					if want.Bit0 != got.Bit0 {
+						t.Errorf("Bit0 mismatch: expected %v, got %v", want.Bit0, got.Bit0)
+					}
+					if want.Bit1 != got.Bit1 {
+						t.Errorf("Bit1 mismatch: expected %v, got %v", want.Bit1, got.Bit1)
+					}
+				case *devicecheck.ValidateRequest:
+					want := tt.request.(*devicecheck.ValidateRequest)
+					if want.DeviceToken != got.DeviceToken {
+						t.Errorf("DeviceToken mismatch: expected %q, got %q", want.DeviceToken, got.DeviceToken)
+					}
+					if want.TransactionID == "" {
+						t.Errorf("TransactionID missing or empty value: expected %q, got empty value", want.TransactionID)
+					} else if want.TransactionID != got.TransactionID {
+						t.Errorf("TransactionID mismatch: expected %q, got %q", want.TransactionID, got.TransactionID)
+					}
+					if got.TimeStamp.Time().IsZero() {
+						t.Errorf("TimeStamp missing or zero value: expected %q, got zero value", want.TimeStamp)
+					} else if devicecheck.UnixTime(want.TimeStamp.Time().Truncate(time.Millisecond)) != got.TimeStamp {
+						t.Errorf("TimeStamp value mismatch: expected %q, got %q", want.TimeStamp, got.TimeStamp)
+					}
+				}
+
 				w.WriteHeader(tt.wantStatus)
 				w.Write([]byte(tt.wantBody))
 			}))
 			defer server.Close()
 
-			cli, _ := devicecheck.NewClient(mockTokenProvider{})
+			cli, _ := devicecheck.NewClient(mockTokenProvider{}, devicecheck.UUIDGenerator{})
 			cli.SetHost(server.URL)
 
 			resp, err := cli.Do(context.Background(), tt.request)
@@ -201,7 +272,7 @@ func TestClient_Do_AllCases_NoMockRequest(t *testing.T) {
 }
 
 func TestNewClient(t *testing.T) {
-	client, err := devicecheck.NewClient(mockTokenProvider{})
+	client, err := devicecheck.NewClient(mockTokenProvider{}, devicecheck.UUIDGenerator{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -209,7 +280,7 @@ func TestNewClient(t *testing.T) {
 		t.Errorf("expected host=%s, got=%s", devicecheck.ProductionHost, client.GetHost())
 	}
 
-	client, err = devicecheck.NewClient(mockTokenProvider{}, appleapi.WithDevelopment())
+	client, err = devicecheck.NewClient(mockTokenProvider{}, devicecheck.UUIDGenerator{}, appleapi.WithDevelopment())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
