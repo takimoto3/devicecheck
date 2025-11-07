@@ -1,4 +1,4 @@
-name: Go Test
+name: Go CI
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [ main, master ]
 
 jobs:
-  test:
+  ci:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -22,3 +22,8 @@ jobs:
 
     - name: Run tests
       run: go test -v ./...
+
+    - name: Run govulncheck
+      run: |
+        go install golang.org/x/vuln/cmd/govulncheck@latest
+        govulncheck -show verbose ./...
