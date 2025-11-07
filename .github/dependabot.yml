@@ -1,0 +1,16 @@
+version: 2
+updates:
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"  # or "daily" if you prefer
+      day: "monday"       # optional: check only on Mondays
+      time: "00:00"       # UTC time
+    open-pull-requests-limit: 10
+    rebase-strategy: "auto"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "go"
