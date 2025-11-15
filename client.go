@@ -97,6 +97,10 @@ type Client struct {
 }
 
 func NewClient(tp token.Provider, gen Generator, opts ...appleapi.Option) (*Client, error) {
+	return NewClientFromInitializer(appleapi.DefaultHTTPClientInitializer(), tp, gen, opts...)
+}
+
+func NewClientFromInitializer(initializer appleapi.HTTPClientInitializer, tp token.Provider, gen Generator, opts ...appleapi.Option) (*Client, error) {
 	cli, err := appleapi.NewClient(appleapi.DefaultHTTPClientInitializer(), ProductionHost, tp, opts...)
 	if err != nil {
 		return nil, err
