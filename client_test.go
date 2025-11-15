@@ -166,11 +166,11 @@ func TestClient_Do_AllCases_NoMockRequest(t *testing.T) {
 					t.Fatal(err)
 				}
 				var got struct {
-					DeviceToken   string               `json:"device_token"`
-					TransactionID string               `json:"transaction_id"`
-					TimeStamp     devicecheck.UnixTime `json:"timestamp"`
-					Bit0          bool                 `json:"bit0"`
-					Bit1          bool                 `json:"bit1"`
+					DeviceToken   string            `json:"device_token"`
+					TransactionID string            `json:"transaction_id"`
+					TimeStamp     appleapi.UnixTime `json:"timestamp"`
+					Bit0          bool              `json:"bit0"`
+					Bit1          bool              `json:"bit1"`
 				}
 				if err := json.Unmarshal(data, &got); err != nil {
 					t.Fatal(err)
@@ -189,7 +189,7 @@ func TestClient_Do_AllCases_NoMockRequest(t *testing.T) {
 					}
 					if got.TimeStamp.Time().IsZero() {
 						t.Errorf("TimeStamp missing or zero value: expected %q, got zero value", want.TimeStamp)
-					} else if devicecheck.UnixTime(want.TimeStamp.Time().Truncate(time.Millisecond)) != got.TimeStamp {
+					} else if appleapi.UnixTime(want.TimeStamp.Time().Truncate(time.Millisecond)) != got.TimeStamp {
 						t.Errorf("TimeStamp value mismatch: expected %q, got %q", want.TimeStamp, got.TimeStamp)
 					}
 				case *devicecheck.UpdateRequest:
@@ -204,7 +204,7 @@ func TestClient_Do_AllCases_NoMockRequest(t *testing.T) {
 					}
 					if got.TimeStamp.Time().IsZero() {
 						t.Errorf("TimeStamp missing or zero value: expected %q, got zero value", want.TimeStamp)
-					} else if devicecheck.UnixTime(want.TimeStamp.Time().Truncate(time.Millisecond)) != got.TimeStamp {
+					} else if appleapi.UnixTime(want.TimeStamp.Time().Truncate(time.Millisecond)) != got.TimeStamp {
 						t.Errorf("TimeStamp value mismatch: expected %q, got %q", want.TimeStamp, got.TimeStamp)
 					}
 					if want.Bit0 != got.Bit0 {
@@ -225,7 +225,7 @@ func TestClient_Do_AllCases_NoMockRequest(t *testing.T) {
 					}
 					if got.TimeStamp.Time().IsZero() {
 						t.Errorf("TimeStamp missing or zero value: expected %q, got zero value", want.TimeStamp)
-					} else if devicecheck.UnixTime(want.TimeStamp.Time().Truncate(time.Millisecond)) != got.TimeStamp {
+					} else if appleapi.UnixTime(want.TimeStamp.Time().Truncate(time.Millisecond)) != got.TimeStamp {
 						t.Errorf("TimeStamp value mismatch: expected %q, got %q", want.TimeStamp, got.TimeStamp)
 					}
 				}
