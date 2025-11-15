@@ -70,9 +70,9 @@ type DeviceCheckRequest interface {
 
 // QueryRequest represents a request to query the two bits for a device.
 type QueryRequest struct {
-	DeviceToken   string   `json:"device_token"`
-	TransactionID string   `json:"transaction_id"`
-	TimeStamp     UnixTime `json:"timestamp"`
+	DeviceToken   string            `json:"device_token"`
+	TransactionID string            `json:"transaction_id"`
+	TimeStamp     appleapi.UnixTime `json:"timestamp"`
 }
 
 // Path returns the API path for the QueryRequest.
@@ -80,11 +80,11 @@ func (r QueryRequest) Path() string { return QueryPath }
 
 // UpdateRequest represents a request to update the two bits for a device.
 type UpdateRequest struct {
-	DeviceToken   string   `json:"device_token"`
-	TransactionID string   `json:"transaction_id"`
-	TimeStamp     UnixTime `json:"timestamp"`
-	Bit0          bool     `json:"bit0"`
-	Bit1          bool     `json:"bit1"`
+	DeviceToken   string            `json:"device_token"`
+	TransactionID string            `json:"transaction_id"`
+	TimeStamp     appleapi.UnixTime `json:"timestamp"`
+	Bit0          bool              `json:"bit0"`
+	Bit1          bool              `json:"bit1"`
 }
 
 // Path returns the API path for the UpdateRequest.
@@ -92,9 +92,9 @@ func (r UpdateRequest) Path() string { return UpdatePath }
 
 // ValidateRequest represents a request to validate a device token.
 type ValidateRequest struct {
-	DeviceToken   string   `json:"device_token"`
-	TransactionID string   `json:"transaction_id"`
-	TimeStamp     UnixTime `json:"timestamp"`
+	DeviceToken   string            `json:"device_token"`
+	TransactionID string            `json:"transaction_id"`
+	TimeStamp     appleapi.UnixTime `json:"timestamp"`
 }
 
 // Path returns the API path for the ValidateRequest.
@@ -149,21 +149,21 @@ func (cli *Client) Do(ctx context.Context, r DeviceCheckRequest) (*Response, err
 			req.TransactionID = cli.generator.Generate()
 		}
 		if req.TimeStamp.Time().IsZero() {
-			req.TimeStamp = UnixTime(time.Now().UTC())
+			req.TimeStamp = appleapi.UnixTime(time.Now().UTC())
 		}
 	case *UpdateRequest:
 		if req.TransactionID == "" {
 			req.TransactionID = cli.generator.Generate()
 		}
 		if req.TimeStamp.Time().IsZero() {
-			req.TimeStamp = UnixTime(time.Now().UTC())
+			req.TimeStamp = appleapi.UnixTime(time.Now().UTC())
 		}
 	case *ValidateRequest:
 		if req.TransactionID == "" {
 			req.TransactionID = cli.generator.Generate()
 		}
 		if req.TimeStamp.Time().IsZero() {
-			req.TimeStamp = UnixTime(time.Now().UTC())
+			req.TimeStamp = appleapi.UnixTime(time.Now().UTC())
 		}
 	}
 
