@@ -1,3 +1,4 @@
+// Package devicecheck provides a client for the Apple DeviceCheck API.
 package devicecheck
 
 import (
@@ -16,34 +17,45 @@ import (
 )
 
 const (
-	ProductionHost  = "https://api.devicecheck.apple.com"
+	// ProductionHost is the base URL for the production DeviceCheck API environment.
+	ProductionHost = "https://api.devicecheck.apple.com"
+	// DevelopmentHost is the base URL for the development DeviceCheck API environment.
 	DevelopmentHost = "https://api.development.devicecheck.apple.com"
 
-	QueryPath    = "/v1/query_two_bits"
-	UpdatePath   = "/v1/update_two_bits"
+	// QueryPath is the API endpoint for querying two bits.
+	QueryPath = "/v1/query_two_bits"
+	// UpdatePath is the API endpoint for updating two bits.
+	UpdatePath = "/v1/update_two_bits"
+	// ValidatePath is the API endpoint for validating a device token.
 	ValidatePath = "/v1/validate_device_token"
 )
 
 var (
-	// 200
+	// ErrBitStateNotFound indicates that the bit state was not found (HTTP 200 with specific message).
 	ErrBitStateNotFound = errors.New("bit state not found")
-	// 400
-	ErrBadDeviceToken        = errors.New("bad device token")
-	ErrBadBits               = errors.New("bad bits")
-	ErrBadTimestamp          = errors.New("bad timestamp")
+	// ErrBadDeviceToken indicates a bad device token (HTTP 400).
+	ErrBadDeviceToken = errors.New("bad device token")
+	// ErrBadBits indicates bad bits in the request (HTTP 400).
+	ErrBadBits = errors.New("bad bits")
+	// ErrBadTimestamp indicates a bad timestamp in the request (HTTP 400).
+	ErrBadTimestamp = errors.New("bad timestamp")
+	// ErrBadAuthorizationToken indicates a bad authorization token (HTTP 400).
 	ErrBadAuthorizationToken = errors.New("bad authorization token")
-	ErrBadPayload            = errors.New("bad payload")
-	// 401
+	// ErrBadPayload indicates a bad request payload (HTTP 400).
+	ErrBadPayload = errors.New("bad payload")
+	// ErrInvalidAuthorizationToken indicates an invalid authorization token (HTTP 401).
 	ErrInvalidAuthorizationToken = errors.New("invalid authorization token")
+	// ErrAuthorizationTokenExpired indicates an expired authorization token (HTTP 401).
 	ErrAuthorizationTokenExpired = errors.New("authorization token expired")
-	// 403
+	// ErrForbidden indicates that the request is forbidden (HTTP 403).
 	ErrForbidden = errors.New("forbidden")
-	// 405
+	// ErrMethodNotAllowed indicates that the HTTP method is not allowed (HTTP 405).
 	ErrMethodNotAllowed = errors.New("method not allowed")
-	// 429
+	// ErrTooManyRequests indicates too many requests (HTTP 429).
 	ErrTooManyRequests = errors.New("too many requests")
-	// 500
-	ErrServerError        = errors.New("server error")
+	// ErrServerError indicates a server-side error (HTTP 500).
+	ErrServerError = errors.New("server error")
+	// ErrServiceUnavailable indicates that the service is unavailable (HTTP 500).
 	ErrServiceUnavailable = errors.New("service unavailable")
 )
 
@@ -51,18 +63,22 @@ var _ DeviceCheckRequest = &QueryRequest{}
 var _ DeviceCheckRequest = &UpdateRequest{}
 var _ DeviceCheckRequest = &ValidateRequest{}
 
+// DeviceCheckRequest is an interface for all DeviceCheck API request types.
 type DeviceCheckRequest interface {
 	Path() string
 }
 
+// QueryRequest represents a request to query the two bits for a device.
 type QueryRequest struct {
 	DeviceToken   string   `json:"device_token"`
 	TransactionID string   `json:"transaction_id"`
 	TimeStamp     UnixTime `json:"timestamp"`
 }
 
+// Path returns the API path for the QueryRequest.
 func (r QueryRequest) Path() string { return QueryPath }
 
+// UpdateRequest represents a request to update the two bits for a device.
 type UpdateRequest struct {
 	DeviceToken   string   `json:"device_token"`
 	TransactionID string   `json:"transaction_id"`
@@ -71,37 +87,45 @@ type UpdateRequest struct {
 	Bit1          bool     `json:"bit1"`
 }
 
+// Path returns the API path for the UpdateRequest.
 func (r UpdateRequest) Path() string { return UpdatePath }
 
+// ValidateRequest represents a request to validate a device token.
 type ValidateRequest struct {
 	DeviceToken   string   `json:"device_token"`
 	TransactionID string   `json:"transaction_id"`
 	TimeStamp     UnixTime `json:"timestamp"`
 }
 
+// Path returns the API path for the ValidateRequest.
 func (r ValidateRequest) Path() string { return ValidatePath }
 
+// Result represents the result of a DeviceCheck query, containing the state of the two bits and the last update time.
 type Result struct {
 	Bit0           bool   `json:"bit0"`
 	Bit1           bool   `json:"bit1"`
 	LastUpdateTime string `json:"last_update_time"`
 }
 
+// Response represents the full response from a DeviceCheck API call.
 type Response struct {
 	Result *Result
 }
 
+// Client is the DeviceCheck API client.
 type Client struct {
 	inner     *appleapi.Client
 	generator Generator
 }
 
+// NewClient creates a new DeviceCheck client with a default HTTP client initializer.
 func NewClient(tp token.Provider, gen Generator, opts ...appleapi.Option) (*Client, error) {
 	return NewClientFromInitializer(appleapi.DefaultHTTPClientInitializer(), tp, gen, opts...)
 }
 
+// NewClientFromInitializer creates a new DeviceCheck client with a custom HTTP client initializer.
 func NewClientFromInitializer(initializer appleapi.HTTPClientInitializer, tp token.Provider, gen Generator, opts ...appleapi.Option) (*Client, error) {
-	cli, err := appleapi.NewClient(appleapi.DefaultHTTPClientInitializer(), ProductionHost, tp, opts...)
+	cli, err := appleapi.NewClient(initializer, ProductionHost, tp, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -116,6 +140,8 @@ func NewClientFromInitializer(initializer appleapi.HTTPClientInitializer, tp tok
 	return &Client{inner: cli, generator: gen}, nil
 }
 
+// Do sends a DeviceCheck API request and returns the response.
+// It automatically populates TransactionID and TimeStamp if they are empty in the request.
 func (cli *Client) Do(ctx context.Context, r DeviceCheckRequest) (*Response, error) {
 	switch req := r.(type) {
 	case *QueryRequest:
@@ -161,6 +187,7 @@ func (cli *Client) Do(ctx context.Context, r DeviceCheckRequest) (*Response, err
 	return cli.handleResponse(resp)
 }
 
+// handleResponse processes the HTTP response from the DeviceCheck API.
 func (cli *Client) handleResponse(resp *http.Response) (*Response, error) {
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
