@@ -1,6 +1,6 @@
 # DeviceCheck
 
-A lightweight and idiomatic Go client for the Apple DeviceCheck API, supporting both production and development environments.
+A lightweight and idiomatic Go client for the [Apple DeviceCheck API](https://developer.apple.com/documentation/devicecheck/accessing-and-modifying-per-device-data), supporting both production and development environments.
 
 ## Features
 
